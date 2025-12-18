@@ -5,13 +5,20 @@ import { Conversation } from '@11labs/client';
 // 1. Log into ElevenLabs > Agents to get your ID
 const AGENT_ID = import.meta.env.VITE_AGENT_ID; 
 // 2. Your n8n Webhook URL (Keep this variable even if using mock data for now)
-const N8N_QUEUE_URL = import.meta.env.VITE_N8N_QUEUE_URL; 
+const N8N_QUEUE_URL = import.meta.env.VITE_N8N_QUEUE_URL;
+// 3. ElevenLabs API Key for outbound calls
+const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
+// 4. Your Twilio phone number ID imported to ElevenLabs
+const PHONE_NUMBER_ID = import.meta.env.VITE_ELEVENLABS_PHONE_NUMBER_ID; 
 
 function App() {
   const [leads, setLeads] = useState([]);
   const [status, setStatus] = useState("SYSTEM_IDLE");
   const [activeLeadId, setActiveLeadId] = useState(null);
   const [callStatus, setCallStatus] = useState('idle'); // idle, connecting, connected, ended
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [outboundCallStatus, setOutboundCallStatus] = useState('idle'); // idle, calling, active, ended, error
+  const [outboundCallId, setOutboundCallId] = useState(null);
   const conversationRef = useRef(null);
 
   // --- 1. Start Call with ElevenLabs SDK ---
@@ -75,7 +82,77 @@ function App() {
     fetchQueue(true);
   };
 
-  // --- 3. Data Fetching Logic ---
+  // --- 3. Start Outbound Phone Call via ElevenLabs + Twilio ---
+  const startOutboundCall = async () => {
+    const targetLead = leads.find(l => l.lead_id === activeLeadId);
+    if (!targetLead || !phoneNumber) {
+      console.error("No lead selected or phone number missing");
+      return;
+    }
+
+    // Validate phone number format (should start with + and country code)
+    if (!phoneNumber.match(/^\+[1-9]\d{6,14}$/)) {
+      alert("Please enter a valid phone number with country code (e.g., +919876543210)");
+      return;
+    }
+
+    setOutboundCallStatus('calling');
+
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY
+        },
+        body: JSON.stringify({
+          agent_id: AGENT_ID,
+          agent_phone_number_id: PHONE_NUMBER_ID,
+          to_number: phoneNumber,
+          conversation_initiation_client_data: {
+            dynamic_variables: {
+              lead_id: targetLead.lead_id,
+              supplier_name: targetLead.supplier_name,
+              poc_name: targetLead.poc_name,
+              original_due_date: targetLead.original_due_date,
+              item_1: targetLead.item_1_name,
+              qty_1: targetLead.item_1_qty,
+              item_2: targetLead.item_2_name || 'null',
+              qty_2: targetLead.item_2_qty || 'null',
+              item_3: targetLead.item_3_name || 'null',
+              qty_3: targetLead.item_3_qty || 'null'
+            }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to initiate call');
+      }
+
+      const data = await response.json();
+      console.log('Outbound call initiated:', data);
+      setOutboundCallId(data.call_id);
+      setOutboundCallStatus('active');
+      
+      // Auto-reset status after some time (calls typically handled by ElevenLabs)
+      setTimeout(() => {
+        setOutboundCallStatus('ended');
+        setTimeout(() => {
+          setOutboundCallStatus('idle');
+          setOutboundCallId(null);
+        }, 3000);
+      }, 5000);
+
+    } catch (error) {
+      console.error('Failed to start outbound call:', error);
+      setOutboundCallStatus('error');
+      setTimeout(() => setOutboundCallStatus('idle'), 3000);
+    }
+  };
+
+  // --- 4. Data Fetching Logic ---
   const fetchQueue = async (preserveSelection = false) => {
     const currentLeadId = activeLeadId;
     setStatus("SYNCING_DB...");
@@ -306,55 +383,131 @@ function App() {
 
           {/* Voice Widget Section */}
           <div className="relative z-10 text-center w-full mt-auto border-t border-[#333] pt-4">
-            <div className="text-xs text-gray-600 mb-2 tracking-[0.3em] font-mono">AI PROCUREMENT ASSISTANT</div>
+            <div className="text-xs text-gray-600 mb-4 tracking-[0.3em] font-mono">AI PROCUREMENT ASSISTANT</div>
             
-            {/* Call Button */}
-            {callStatus === 'idle' && (
-              <button
-                onClick={startCall}
-                disabled={!activeLeadId}
-                className={`px-8 py-4 rounded-full font-mono text-sm uppercase tracking-wider transition-all duration-300 ${
-                  activeLeadId 
-                    ? 'bg-safety-orange text-black hover:bg-orange-400 cursor-pointer' 
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {activeLeadId ? '📞 Start Call' : 'Select a Supplier'}
-              </button>
-            )}
+            {/* Two Call Options Container */}
+            <div className="flex gap-6 justify-center items-start">
+              
+              {/* Option 1: Browser Voice Call */}
+              <div className="flex-1 max-w-[200px]">
+                <div className="text-[10px] text-gray-500 mb-2 font-mono uppercase tracking-wider">Browser Call</div>
+                
+                {callStatus === 'idle' && (
+                  <button
+                    onClick={startCall}
+                    disabled={!activeLeadId || outboundCallStatus !== 'idle'}
+                    className={`w-full px-4 py-3 rounded font-mono text-xs uppercase tracking-wider transition-all duration-300 ${
+                      activeLeadId && outboundCallStatus === 'idle'
+                        ? 'bg-safety-orange text-black hover:bg-orange-400 cursor-pointer' 
+                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    VOICE CALL
+                  </button>
+                )}
 
-            {callStatus === 'connecting' && (
-              <div className="px-8 py-4 bg-yellow-900/50 border border-yellow-600 rounded-full inline-block">
-                <span className="text-yellow-400 font-mono text-sm animate-pulse">CONNECTING...</span>
-              </div>
-            )}
+                {callStatus === 'connecting' && (
+                  <div className="px-4 py-3 bg-yellow-900/50 border border-yellow-600 rounded">
+                    <span className="text-yellow-400 font-mono text-xs animate-pulse">CONNECTING...</span>
+                  </div>
+                )}
 
-            {callStatus === 'connected' && (
-              <div className="space-y-3">
-                <div className="px-8 py-4 bg-green-900/50 border border-green-600 rounded-full inline-block">
-                  <span className="text-green-400 font-mono text-sm flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                    CALL IN PROGRESS
-                  </span>
-                </div>
-                <button
-                  onClick={endCall}
-                  className="block mx-auto px-6 py-2 bg-red-900/50 border border-red-600 text-red-400 rounded font-mono text-xs hover:bg-red-900 transition-all"
-                >
-                  End Call
-                </button>
-              </div>
-            )}
+                {callStatus === 'connected' && (
+                  <div className="space-y-2">
+                    <div className="px-4 py-3 bg-green-900/50 border border-green-600 rounded">
+                      <span className="text-green-400 font-mono text-xs flex items-center justify-center gap-2">
+                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        IN PROGRESS
+                      </span>
+                    </div>
+                    <button
+                      onClick={endCall}
+                      className="w-full px-4 py-2 bg-red-900/50 border border-red-600 text-red-400 rounded font-mono text-xs hover:bg-red-900 transition-all"
+                    >
+                      End Call
+                    </button>
+                  </div>
+                )}
 
-            {callStatus === 'ended' && (
-              <div className="px-8 py-4 bg-gray-800 border border-gray-600 rounded-full inline-block">
-                <span className="text-gray-400 font-mono text-sm">CALL ENDED</span>
+                {callStatus === 'ended' && (
+                  <div className="px-4 py-3 bg-gray-800 border border-gray-600 rounded">
+                    <span className="text-gray-400 font-mono text-xs">CALL ENDED</span>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Divider */}
+              <div className="flex flex-col items-center justify-center h-24">
+                <div className="w-px h-full bg-[#333]"></div>
+                <span className="text-[10px] text-gray-600 font-mono py-1">OR</span>
+                <div className="w-px h-full bg-[#333]"></div>
+              </div>
+
+              {/* Option 2: Outbound Phone Call */}
+              <div className="flex-1 max-w-[240px]">
+                <div className="text-[10px] text-gray-500 mb-2 font-mono uppercase tracking-wider">Phone Call (Twilio)</div>
+                
+                {outboundCallStatus === 'idle' && (
+                  <div className="space-y-2">
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+919876543210"
+                      disabled={callStatus !== 'idle'}
+                      className="w-full px-3 py-2 bg-[#1a1a1e] border border-[#333] text-gray-200 text-xs font-mono rounded focus:border-safety-orange focus:outline-none disabled:opacity-50 placeholder:text-gray-600"
+                    />
+                    <button
+                      onClick={startOutboundCall}
+                      disabled={!activeLeadId || !phoneNumber || callStatus !== 'idle'}
+                      className={`w-full px-4 py-3 rounded font-mono text-xs uppercase tracking-wider transition-all duration-300 ${
+                        activeLeadId && phoneNumber && callStatus === 'idle'
+                          ? 'bg-safety-orange text-black hover:bg-orange-400 cursor-pointer' 
+                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      PHONE CALL
+                    </button>
+                  </div>
+                )}
+
+                {outboundCallStatus === 'calling' && (
+                  <div className="px-4 py-3 bg-yellow-900/50 border border-yellow-600 rounded">
+                    <span className="text-yellow-400 font-mono text-xs animate-pulse">DIALING {phoneNumber}...</span>
+                  </div>
+                )}
+
+                {outboundCallStatus === 'active' && (
+                  <div className="space-y-2">
+                    <div className="px-4 py-3 bg-green-900/50 border border-green-600 rounded">
+                      <span className="text-green-400 font-mono text-xs flex items-center justify-center gap-2">
+                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        CALL ACTIVE
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      Call ID: {outboundCallId?.slice(0, 8)}...
+                    </div>
+                  </div>
+                )}
+
+                {outboundCallStatus === 'ended' && (
+                  <div className="px-4 py-3 bg-gray-800 border border-gray-600 rounded">
+                    <span className="text-gray-400 font-mono text-xs">CALL ENDED</span>
+                  </div>
+                )}
+
+                {outboundCallStatus === 'error' && (
+                  <div className="px-4 py-3 bg-red-900/50 border border-red-600 rounded">
+                    <span className="text-red-400 font-mono text-xs">CALL FAILED</span>
+                  </div>
+                )}
+              </div>
+            </div>
             
-            <p className="mt-4 text-xs text-gray-500/80 max-w-xs mx-auto leading-relaxed font-mono">
+            <p className="mt-4 text-xs text-gray-500/80 max-w-md mx-auto leading-relaxed font-mono">
               {activeLeadId 
-                ? `Ready to call ${leads.find(l => l.lead_id === activeLeadId)?.poc_name || 'supplier'}`
+                ? `Ready to contact ${leads.find(l => l.lead_id === activeLeadId)?.poc_name || 'supplier'} via browser or phone`
                 : 'Select a supplier from the queue to begin'
               }
             </p>
