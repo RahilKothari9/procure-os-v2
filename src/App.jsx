@@ -16,9 +16,11 @@ function App() {
   const [status, setStatus] = useState("SYSTEM_IDLE");
   const [activeLeadId, setActiveLeadId] = useState(null);
   const [callStatus, setCallStatus] = useState('idle'); // idle, connecting, connected, ended
+  const [countryCode, setCountryCode] = useState('+91');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [outboundCallStatus, setOutboundCallStatus] = useState('idle'); // idle, calling, active, ended, error
   const [outboundCallId, setOutboundCallId] = useState(null);
+  const [outboundConversationId, setOutboundConversationId] = useState(null);
   const conversationRef = useRef(null);
 
   // --- 1. Start Call with ElevenLabs SDK ---
@@ -90,12 +92,14 @@ function App() {
       return;
     }
 
-    // Validate phone number format (should start with + and country code)
-    if (!phoneNumber.match(/^\+[1-9]\d{6,14}$/)) {
-      alert("Please enter a valid phone number with country code (e.g., +919876543210)");
+    // Validate phone number (just digits, 10 digits for India)
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    if (cleanNumber.length < 10) {
+      alert("Please enter a valid 10-digit phone number");
       return;
     }
 
+    const fullPhoneNumber = `${countryCode}${cleanNumber}`;
     setOutboundCallStatus('calling');
 
     try {
@@ -108,7 +112,7 @@ function App() {
         body: JSON.stringify({
           agent_id: AGENT_ID,
           agent_phone_number_id: PHONE_NUMBER_ID,
-          to_number: phoneNumber,
+          to_number: fullPhoneNumber,
           conversation_initiation_client_data: {
             dynamic_variables: {
               lead_id: targetLead.lead_id,
@@ -133,17 +137,9 @@ function App() {
 
       const data = await response.json();
       console.log('Outbound call initiated:', data);
-      setOutboundCallId(data.call_id);
+      setOutboundCallId(data.callSid || null);
+      setOutboundConversationId(data.conversation_id || null);
       setOutboundCallStatus('active');
-      
-      // Auto-reset status after some time (calls typically handled by ElevenLabs)
-      setTimeout(() => {
-        setOutboundCallStatus('ended');
-        setTimeout(() => {
-          setOutboundCallStatus('idle');
-          setOutboundCallId(null);
-        }, 3000);
-      }, 5000);
 
     } catch (error) {
       console.error('Failed to start outbound call:', error);
@@ -444,19 +440,32 @@ function App() {
               </div>
 
               {/* Option 2: Outbound Phone Call */}
-              <div className="flex-1 max-w-[240px]">
+              <div className="flex-1 max-w-[280px]">
                 <div className="text-[10px] text-gray-500 mb-2 font-mono uppercase tracking-wider">Phone Call (Twilio)</div>
                 
                 {outboundCallStatus === 'idle' && (
                   <div className="space-y-2">
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+919876543210"
-                      disabled={callStatus !== 'idle'}
-                      className="w-full px-3 py-2 bg-[#1a1a1e] border border-[#333] text-gray-200 text-xs font-mono rounded focus:border-safety-orange focus:outline-none disabled:opacity-50 placeholder:text-gray-600"
-                    />
+                    <div className="flex gap-1">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        disabled={callStatus !== 'idle'}
+                        className="w-20 px-2 py-2 bg-[#1a1a1e] border border-[#333] text-gray-200 text-xs font-mono rounded focus:border-safety-orange focus:outline-none disabled:opacity-50"
+                      >
+                        <option value="+91">+91</option>
+                        <option value="+1">+1</option>
+                        <option value="+44">+44</option>
+                        <option value="+971">+971</option>
+                      </select>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="9876543210"
+                        disabled={callStatus !== 'idle'}
+                        className="flex-1 px-3 py-2 bg-[#1a1a1e] border border-[#333] text-gray-200 text-xs font-mono rounded focus:border-safety-orange focus:outline-none disabled:opacity-50 placeholder:text-gray-600"
+                      />
+                    </div>
                     <button
                       onClick={startOutboundCall}
                       disabled={!activeLeadId || !phoneNumber || callStatus !== 'idle'}
@@ -473,7 +482,7 @@ function App() {
 
                 {outboundCallStatus === 'calling' && (
                   <div className="px-4 py-3 bg-yellow-900/50 border border-yellow-600 rounded">
-                    <span className="text-yellow-400 font-mono text-xs animate-pulse">DIALING {phoneNumber}...</span>
+                    <span className="text-yellow-400 font-mono text-xs animate-pulse">DIALING {countryCode}{phoneNumber}...</span>
                   </div>
                 )}
 
@@ -485,9 +494,22 @@ function App() {
                         CALL ACTIVE
                       </span>
                     </div>
-                    <div className="text-[10px] text-gray-500 font-mono">
-                      Call ID: {outboundCallId?.slice(0, 8)}...
-                    </div>
+                    {outboundCallId && (
+                      <div className="text-[10px] text-gray-500 font-mono truncate">
+                        SID: {outboundCallId}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setOutboundCallStatus('idle');
+                        setOutboundCallId(null);
+                        setOutboundConversationId(null);
+                        fetchQueue(true);
+                      }}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-600 text-gray-400 rounded font-mono text-xs hover:bg-gray-700 transition-all"
+                    >
+                      MARK COMPLETE
+                    </button>
                   </div>
                 )}
 
