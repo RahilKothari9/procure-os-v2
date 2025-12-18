@@ -59,7 +59,12 @@ function App() {
         onDisconnect: () => {
           console.log('Disconnected from ElevenLabs');
           setCallStatus('ended');
-          setTimeout(() => setCallStatus('idle'), 2000);
+          conversationRef.current = null;
+          // Refresh data and reset status after showing ended state
+          setTimeout(() => {
+            setCallStatus('idle');
+            fetchQueue(true);
+          }, 2000);
         },
         onError: (error) => {
           console.error('ElevenLabs Error:', error);
