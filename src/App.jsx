@@ -22,6 +22,7 @@ function App() {
   const [outboundCallId, setOutboundCallId] = useState(null);
   const [outboundConversationId, setOutboundConversationId] = useState(null);
   const conversationRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
 
   // --- 1. Start Call with ElevenLabs SDK ---
   const startCall = async () => {
@@ -141,6 +142,11 @@ function App() {
       setOutboundConversationId(data.conversation_id || null);
       setOutboundCallStatus('active');
 
+      // Start polling for call status
+      if (data.conversation_id) {
+        startCallStatusPolling(data.conversation_id);
+      }
+
     } catch (error) {
       console.error('Failed to start outbound call:', error);
       setOutboundCallStatus('error');
@@ -148,7 +154,66 @@ function App() {
     }
   };
 
-  // --- 4. Data Fetching Logic ---
+  // --- 4. Poll Call Status ---
+  const startCallStatusPolling = (conversationId) => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`, {
+          method: 'GET',
+          headers: {
+            'xi-api-key': ELEVENLABS_API_KEY
+          }
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch call status');
+          return;
+        }
+
+        const data = await response.json();
+        console.log('Call status:', data.status);
+
+        // Update status based on conversation state
+        if (data.status === 'done' || data.status === 'failed') {
+          setOutboundCallStatus(data.status === 'done' ? 'ended' : 'error');
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          
+          // Auto-reset to idle after showing ended status
+          setTimeout(() => {
+            setOutboundCallStatus('idle');
+            setOutboundCallId(null);
+            setOutboundConversationId(null);
+            fetchQueue(true); // Refresh to get updated data
+          }, 3000);
+        } else if (data.status === 'in-progress') {
+          setOutboundCallStatus('active');
+        }
+      } catch (error) {
+        console.error('Error polling call status:', error);
+      }
+    };
+
+    // Poll immediately, then every 3 seconds
+    pollStatus();
+    pollingIntervalRef.current = setInterval(pollStatus, 3000);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // --- 5. Data Fetching Logic ---
   const fetchQueue = async (preserveSelection = false) => {
     const currentLeadId = activeLeadId;
     setStatus("SYNCING_DB...");
@@ -491,31 +556,38 @@ function App() {
                     <div className="px-4 py-3 bg-green-900/50 border border-green-600 rounded">
                       <span className="text-green-400 font-mono text-xs flex items-center justify-center gap-2">
                         <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                        CALL ACTIVE
+                        CALL IN PROGRESS
                       </span>
                     </div>
-                    {outboundCallId && (
-                      <div className="text-[10px] text-gray-500 font-mono truncate">
-                        SID: {outboundCallId}
-                      </div>
-                    )}
+                    <div className="text-[10px] text-gray-600 font-mono text-center">
+                      Auto-updating status...
+                    </div>
                     <button
                       onClick={() => {
+                        if (pollingIntervalRef.current) {
+                          clearInterval(pollingIntervalRef.current);
+                          pollingIntervalRef.current = null;
+                        }
                         setOutboundCallStatus('idle');
                         setOutboundCallId(null);
                         setOutboundConversationId(null);
                         fetchQueue(true);
                       }}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-600 text-gray-400 rounded font-mono text-xs hover:bg-gray-700 transition-all"
+                      className="w-full px-3 py-1.5 border border-[#333] text-gray-500 rounded font-mono text-[10px] hover:border-gray-500 hover:text-gray-400 transition-all"
                     >
-                      MARK COMPLETE
+                      FORCE RESET
                     </button>
                   </div>
                 )}
 
                 {outboundCallStatus === 'ended' && (
-                  <div className="px-4 py-3 bg-gray-800 border border-gray-600 rounded">
-                    <span className="text-gray-400 font-mono text-xs">CALL ENDED</span>
+                  <div className="space-y-2">
+                    <div className="px-4 py-3 bg-green-900/30 border border-green-800 rounded">
+                      <span className="text-green-400 font-mono text-xs">CALL COMPLETED</span>
+                    </div>
+                    <div className="text-[10px] text-gray-600 font-mono text-center">
+                      Refreshing data...
+                    </div>
                   </div>
                 )}
 
