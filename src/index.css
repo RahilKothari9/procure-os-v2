@@ -1,0 +1,48 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+/* Custom Theme Configuration for Tailwind v4 */
+@theme {
+  --font-mono: 'IBM Plex Mono', monospace;
+  --color-safety-orange: #FF4500;
+  --color-oil-black: #09090b;
+  --color-panel-bg: #121214;
+}
+
+body {
+  background-color: #09090b;
+  color: #e4e4e7;
+  font-family: 'IBM Plex Mono', monospace;
+  overflow: hidden;
+}
+
+/* CRT Scanline Effect */
+.crt-scanline {
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(255, 69, 0, 0.02) 51%
+  );
+  background-size: 100% 4px;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Technical Grid Background */
+.bg-grid {
+  background-image: 
+    linear-gradient(rgba(255, 69, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 69, 0, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Widget Position Override */
+elevenlabs-convai {
+  margin-top: 2rem;
+  z-index: 20;
+}
