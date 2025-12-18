@@ -319,8 +319,8 @@ function App() {
         </header>
 
         {/* SIDEBAR (QUEUE) */}
-        <aside className="col-span-4 border-r border-[#333] bg-[#0c0c0e] flex flex-col">
-          <div className="p-4 border-b border-[#333]">
+        <aside className="col-span-4 border-r border-[#333] bg-[#0c0c0e] flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-[#333] flex-shrink-0">
             <h2 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-4 font-mono">Supplier Queue</h2>
             <button 
               onClick={fetchQueue}
@@ -330,7 +330,7 @@ function App() {
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {leads.map((lead) => (
               <div 
                 key={lead.lead_id}
