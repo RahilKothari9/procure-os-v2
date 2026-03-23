@@ -1,0 +1,209 @@
+{
+  "type": "webhook",
+  "name": "log_followup",
+  "description": "Saves the Mahindra supplier follow-up result and triggers email notification.",
+  "disable_interruptions": false,
+  "force_pre_tool_speech": "auto",
+  "tool_call_sound": null,
+  "tool_call_sound_behavior": "auto",
+  "tool_error_handling_mode": "auto",
+  "execution_mode": "immediate",
+  "api_schema": {
+    "url": "https://YOUR_N8N_HOST/webhook/mahindra/save-followup",
+    "method": "POST",
+    "path_params_schema": [],
+    "query_params_schema": [],
+    "request_body_schema": {
+      "id": "body",
+      "type": "object",
+      "description": "Save every Mahindra follow-up field.",
+      "properties": [
+        {
+          "id": "leadId",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Lead ID.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "supplierName",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Supplier name.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "pocName",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Confirmed contact.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "partNo",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Part number.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "partDescription",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Part description.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "qtyRequired",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Requested quantity.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "qtyRequiredDate",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Required date.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "qtyRequiredTime",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Required time or empty string.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "qtyConfirmed",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Quantity confirmed by supplier.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "dateConfirmed",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Confirmed or revised date.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "status",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Use Dispatched or Delayed.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "reasonForDelay",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Delay reason or empty string.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "vehicleDetails",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Vehicle details or empty string.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "driverDetails",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Driver details or empty string.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "riskLevel",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "LOW or CRITICAL.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        },
+        {
+          "id": "emailRecipients",
+          "type": "string",
+          "value_type": "llm_prompt",
+          "description": "Comma-separated recipients.",
+          "dynamic_variable": "",
+          "constant_value": "",
+          "enum": null,
+          "is_system_provided": false,
+          "required": true
+        }
+      ],
+      "required": false,
+      "value_type": "llm_prompt"
+    },
+    "request_headers": [],
+    "auth_connection": null
+  },
+  "assignments": [],
+  "response_timeout_secs": 20,
+  "dynamic_variables": {
+    "dynamic_variable_placeholders": {}
+  }
+}

@@ -1,0 +1,389 @@
+{
+  "name": "mahindra-followup-demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mahindra/import-sheet",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "4b1200f5-8dcb-4b8b-93f3-f36ca25ff25c",
+      "name": "Webhook - Import Spreadsheet",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        40,
+        80
+      ],
+      "webhookId": "mahindra-import-sheet"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const globalStore = $getWorkflowStaticData('global');\nconst payload = $input.first().json.body ?? $input.first().json;\nconst rows = Array.isArray(payload.rows) ? payload.rows : [];\nconst uploadedAt = payload.uploaded_at || new Date().toISOString();\nconst normalizedRows = rows.map((row, index) => ({\n  leadId: row.leadId || row.lead_id || row.id || `MHD-${String(index + 1).padStart(3, '0')}`,\n  serialNo: row.serialNo || row.serial_no || row['S. No'] || String(index + 1),\n  supplierName: row.supplierName || row.supplier_name || 'Mahindra Supplier',\n  pocName: row.pocName || row.poc_name || 'Supplier POC',\n  phone: row.phone || '',\n  email: row.email || '',\n  partNo: row.partNo || row.part_no || '',\n  partDescription: row.partDescription || row.part_description || '',\n  addValue: row.addValue || row.add || '',\n  currentCoverageDays: row.currentCoverageDays || row.current_coverage_days || '',\n  qtyRequired: row.qtyRequired || row.qty_required || '',\n  qtyRequiredDate: row.qtyRequiredDate || row.qty_required_date || '',\n  qtyRequiredTime: row.qtyRequiredTime || row.qty_required_time || '',\n  qtyConfirmed: row.qtyConfirmed || row.qty_confirmed || '',\n  dateConfirmed: row.dateConfirmed || row.date_confirmed || '',\n  status: row.status || 'Pending',\n  reasonForDelay: row.reasonForDelay || row.reason_for_delay || '',\n  vehicleDetails: row.vehicleDetails || row.vehicle_details || '',\n  driverDetails: row.driverDetails || row.driver_details || '',\n  riskLevel: row.riskLevel || row.risk_level || 'LOW',\n  emailRecipients: row.emailRecipients || row.email_recipients || payload.default_email_recipients || 'mahindra-demo@procure-os.local',\n  source: payload.filename || 'manual-upload',\n  lastUpdatedAt: uploadedAt\n}));\nglobalStore.mahindraRows = normalizedRows;\nglobalStore.lastUpload = {\n  filename: payload.filename || 'manual-upload',\n  rowCount: normalizedRows.length,\n  uploadedAt\n};\nreturn [{ json: { success: true, rowCount: normalizedRows.length, uploadedAt, filename: globalStore.lastUpload.filename } }];"
+      },
+      "id": "6c27d268-f471-447d-9e0b-7e3cfdbf1cbe",
+      "name": "Code - Store Uploaded Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "32c4b0d0-e7a2-40b6-b1d7-7d8294956b58",
+      "name": "Respond - Import Spreadsheet",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        520,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "path": "mahindra/get-queue",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "8ce2509c-1962-4ae8-8550-69d18e5b7eeb",
+      "name": "Webhook - Get Queue",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        40,
+        280
+      ],
+      "webhookId": "mahindra-get-queue"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const globalStore = $getWorkflowStaticData('global');\nconst rows = globalStore.mahindraRows || [];\nreturn [{ json: { rows } }];"
+      },
+      "id": "7eac7ed2-a670-4a0e-b1a0-f73f95fd5058",
+      "name": "Code - Load Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.rows || [] }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b55fd3cf-9ea0-46b5-b9a2-6afea762017e",
+      "name": "Respond - Get Queue",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        520,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mahindra/save-followup",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "5d1f2ece-0830-43ba-b56a-10cc38d28179",
+      "name": "Webhook - Save Follow-up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        40,
+        560
+      ],
+      "webhookId": "mahindra-save-followup"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const globalStore = $getWorkflowStaticData('global');\nconst body = $input.first().json.body ?? $input.first().json;\nconst rows = Array.isArray(globalStore.mahindraRows) ? globalStore.mahindraRows : [];\nconst toNumber = (value) => {\n  const numeric = Number(String(value ?? '').replace(/,/g, '').trim());\n  return Number.isFinite(numeric) ? numeric : null;\n};\nconst parseDate = (value) => {\n  const raw = String(value || '').trim().replace(/\\./g, '-').replace(/\\//g, '-');\n  if (!raw) return null;\n  const match = raw.match(/^(\\d{1,2})-(\\d{1,2})-(\\d{2,4})$/);\n  if (match) {\n    const [, day, month, year] = match;\n    const fullYear = year.length === 2 ? `20${year}` : year;\n    const parsed = new Date(`${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`);\n    return Number.isNaN(parsed.getTime()) ? null : parsed;\n  }\n  const parsed = new Date(raw);\n  return Number.isNaN(parsed.getTime()) ? null : parsed;\n};\nconst computeRisk = (row) => {\n  const coverage = toNumber(row.currentCoverageDays);\n  const requiredQty = toNumber(row.qtyRequired);\n  const confirmedQty = toNumber(row.qtyConfirmed);\n  const requiredDate = parseDate(row.qtyRequiredDate);\n  const confirmedDate = parseDate(row.dateConfirmed);\n  if (String(row.status || '').toLowerCase() === 'delayed') return 'CRITICAL';\n  if (coverage !== null && coverage <= 2) return 'CRITICAL';\n  if (requiredQty !== null && confirmedQty !== null && confirmedQty < requiredQty) return 'CRITICAL';\n  if (requiredDate && confirmedDate && confirmedDate > requiredDate) return 'CRITICAL';\n  return 'LOW';\n};\nconst leadId = body.leadId || body.lead_id;\nconst existing = rows.find((row) => row.leadId === leadId) || {};\nconst updated = {\n  ...existing,\n  ...body,\n  leadId,\n  status: body.status || existing.status || 'Pending',\n  qtyConfirmed: body.qtyConfirmed || existing.qtyConfirmed || '',\n  dateConfirmed: body.dateConfirmed || existing.dateConfirmed || '',\n  reasonForDelay: body.reasonForDelay || existing.reasonForDelay || '',\n  vehicleDetails: body.vehicleDetails || existing.vehicleDetails || '',\n  driverDetails: body.driverDetails || existing.driverDetails || '',\n  emailRecipients: body.emailRecipients || existing.emailRecipients || 'mahindra-demo@procure-os.local',\n  lastUpdatedAt: new Date().toISOString()\n};\nupdated.riskLevel = body.riskLevel || computeRisk(updated);\nglobalStore.mahindraRows = rows.some((row) => row.leadId === leadId)\n  ? rows.map((row) => row.leadId === leadId ? updated : row)\n  : [...rows, updated];\nreturn [{ json: updated }];"
+      },
+      "id": "24dd9cc8-4df7-416f-b6e5-6ebdba7b6d20",
+      "name": "Code - Merge Follow-up Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailRecipients || 'mahindra-demo@procure-os.local' }}",
+        "subject": "=Mahindra follow-up | {{ $json.partNo || $json.part_no }} | {{ $json.status }} | {{ $json.riskLevel }}",
+        "message": "=Lead ID: {{ $json.leadId }}\nSupplier: {{ $json.supplierName }}\nPOC: {{ $json.pocName }}\nPart: {{ $json.partNo }} - {{ $json.partDescription }}\nQty required: {{ $json.qtyRequired }}\nQty required date: {{ $json.qtyRequiredDate }} {{ $json.qtyRequiredTime }}\nQty confirmed: {{ $json.qtyConfirmed }}\nDate confirmed: {{ $json.dateConfirmed }}\nStatus: {{ $json.status }}\nRisk: {{ $json.riskLevel }}\nReason for delay: {{ $json.reasonForDelay || 'NA' }}\nVehicle details: {{ $json.vehicleDetails || 'NA' }}\nDriver details: {{ $json.driverDetails || 'NA' }}\nUpdated at: {{ $json.lastUpdatedAt }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5d4571f1-3cbc-4840-94c2-846ff20e12df",
+      "name": "Gmail - Send Follow-up Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        580,
+        560
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "critical-risk-check",
+              "leftValue": "={{ $json.riskLevel }}",
+              "rightValue": "CRITICAL",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9b009fcf-9c83-4d59-b3d8-98a49fa45739",
+      "name": "If - Critical Risk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        820,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailRecipients || 'mahindra-demo@procure-os.local' }}",
+        "subject": "=CRITICAL escalation | {{ $json.partNo }} | {{ $json.supplierName }}",
+        "message": "=CRITICAL supplier delay detected.\n\nLead ID: {{ $json.leadId }}\nSupplier: {{ $json.supplierName }}\nPart: {{ $json.partNo }} - {{ $json.partDescription }}\nRequired: {{ $json.qtyRequired }} by {{ $json.qtyRequiredDate }} {{ $json.qtyRequiredTime }}\nConfirmed: {{ $json.qtyConfirmed }} by {{ $json.dateConfirmed }}\nReason: {{ $json.reasonForDelay || 'NA' }}\nVehicle: {{ $json.vehicleDetails || 'NA' }}\nDriver: {{ $json.driverDetails || 'NA' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "bf0abaf4-168d-4b95-b0f8-e7392dba6ca1",
+      "name": "Gmail - Send Critical Escalation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1060,
+        440
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"status\": $json.status,\n  \"risk\": $json.riskLevel,\n  \"emailed\": true,\n  \"escalated\": false,\n  \"leadId\": $json.leadId\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "fd506355-1c69-4ebf-b2d7-b19487bb9635",
+      "name": "Respond - Save Normal",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1060,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"status\": $json.status,\n  \"risk\": $json.riskLevel,\n  \"emailed\": true,\n  \"escalated\": true,\n  \"leadId\": $json.leadId\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "4943033b-cb79-40f0-b8de-6da4459e47f5",
+      "name": "Respond - Save Critical",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1300,
+        440
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Import Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Code - Store Uploaded Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Store Uploaded Rows": {
+      "main": [
+        [
+          {
+            "node": "Respond - Import Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Queue": {
+      "main": [
+        [
+          {
+            "node": "Code - Load Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Load Queue": {
+      "main": [
+        [
+          {
+            "node": "Respond - Get Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Save Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Code - Merge Follow-up Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Merge Follow-up Result": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Send Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Send Follow-up Email": {
+      "main": [
+        [
+          {
+            "node": "If - Critical Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If - Critical Risk": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Send Critical Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Save Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Send Critical Escalation": {
+      "main": [
+        [
+          {
+            "node": "Respond - Save Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "df480f80-203f-40a2-bf00-82b6ce6d3a59",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "mahindraFollowupDemo",
+  "tags": []
+}
